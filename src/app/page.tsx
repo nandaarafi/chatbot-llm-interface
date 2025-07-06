@@ -1,5 +1,6 @@
 
 import { HomeClient } from "./home-client";
+import { Chat } from "@/components/chat";
 
 export default function Home() {
   const suggestedQuestions = [
@@ -16,9 +17,10 @@ export default function Home() {
   ];
 
   return (
-    <HomeClient 
-      suggestedQuestions={suggestedQuestions} 
-      moreQuestions={moreQuestions} 
-    />
+    <Chat/>
+    // <HomeClient 
+    //   suggestedQuestions={suggestedQuestions} 
+    //   moreQuestions={moreQuestions} 
+    // />
   );
 }

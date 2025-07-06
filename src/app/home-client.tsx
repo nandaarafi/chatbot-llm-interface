@@ -26,7 +26,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { messages, input, handleInputChange, handleSubmit, append, isLoading } = useChat({
-    api: '/api/chat',
+    api: 'http://localhost:8000/chat/stream',
     body: {
       // This will be included in the request body
       file: file ? {

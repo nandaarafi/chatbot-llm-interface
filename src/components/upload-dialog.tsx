@@ -19,19 +19,28 @@ interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFileUpload: (file: File) => void;
+  onUploadSuccess?: () => void;
 }
 
-export function UploadDialog({ open, onOpenChange, onFileUpload }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess }: UploadDialogProps) {
   const [files, setFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      onFileUpload(e.target.files[0]);
-      onOpenChange(false);
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      const pdfFiles = newFiles.filter(file => file.type === 'application/pdf')
+      
+      if (pdfFiles.length < newFiles.length) {
+        toast.warning("Some files were skipped", {
+          description: "Only PDF files are supported."
+        })
+      }
+      
+      setFiles(prev => [...prev, ...pdfFiles])
     }
-  };
+  }
 
   const removeFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index))
@@ -50,7 +59,7 @@ export function UploadDialog({ open, onOpenChange, onFileUpload }: UploadDialogP
     const toastId = toast.loading(`Uploading ${files.length} file(s)...`)
 
     try {
-      const response = await fetch("http://localhost:8000/documents/", {
+      const response = await fetch("http://localhost:8000/upload/", {
         method: "POST",
         body: formData,
         headers: {
@@ -79,8 +88,15 @@ export function UploadDialog({ open, onOpenChange, onFileUpload }: UploadDialogP
         id: toastId,
       })
 
+      // Call the success callback if provided
+      if (onUploadSuccess) {
+        onUploadSuccess()
+      }
+
       // Close the dialog
       onOpenChange(false)
+      onFileUpload(files[0]);
+  
     } catch (error) {
       console.error("Error uploading files:", error)
       toast.error("Upload failed", {
