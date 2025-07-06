@@ -21,7 +21,7 @@ interface UploadDialogProps {
   onFileUpload: (file: File) => void;
 }
 
-export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, onFileUpload }: UploadDialogProps) {
   const [files, setFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
