@@ -4,6 +4,7 @@ import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Toaster, toast } from 'sonner'
+import  { PanelLeftOpen } from "lucide-react"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
           <div className="flex h-screen bg-background overflow-hidden">
             <div className="h-screen sticky top-0 flex-shrink-0 border-r">
               <AppSidebar />
+              <PanelLeftOpen />
             </div>
             <main className="flex-1 overflow-y-auto transition-[margin] duration-300 ease-in-out">
               <div className="max-w-7xl mx-auto w-full p-4">

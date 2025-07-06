@@ -18,28 +18,20 @@ import { Upload, X } from "lucide-react"
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploadSuccess?: () => void;
+  onFileUpload: (file: File) => void;
 }
 
-export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess }: UploadDialogProps) {
   const [files, setFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      const pdfFiles = newFiles.filter(file => file.type === 'application/pdf')
-      
-      if (pdfFiles.length < newFiles.length) {
-        toast.warning("Some files were skipped", {
-          description: "Only PDF files are supported."
-        })
-      }
-      
-      setFiles(prev => [...prev, ...pdfFiles])
+    if (e.target.files && e.target.files.length > 0) {
+      onFileUpload(e.target.files[0]);
+      onOpenChange(false);
     }
-  }
+  };
 
   const removeFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index))
@@ -86,11 +78,6 @@ export function UploadDialog({ open, onOpenChange, onUploadSuccess }: UploadDial
         description: `${files.length} file(s) have been uploaded successfully.`,
         id: toastId,
       })
-
-      // Call the success callback if provided
-      if (onUploadSuccess) {
-        onUploadSuccess()
-      }
 
       // Close the dialog
       onOpenChange(false)
