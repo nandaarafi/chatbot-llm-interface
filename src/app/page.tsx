@@ -17,10 +17,10 @@ export default function Home() {
   ];
 
   return (
-    <Chat/>
-    // <HomeClient 
-    //   suggestedQuestions={suggestedQuestions} 
-    //   moreQuestions={moreQuestions} 
-    // />
+    // <Chat/>
+    <HomeClient 
+      suggestedQuestions={suggestedQuestions} 
+      moreQuestions={moreQuestions} 
+    />
   );
 }

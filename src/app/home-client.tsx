@@ -9,11 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { UploadDialog } from "@/components/upload-dialog";
 import { useChat } from 'ai/react';
 import { toast } from "sonner"
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { PreviewMessage, ThinkingMessage } from "@/components/message";
+import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 
 interface HomeClientProps {
   suggestedQuestions: string[];
@@ -24,22 +21,40 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatId = "home-chat";
 
-  const { messages, input, handleInputChange, handleSubmit, append, isLoading } = useChat({
+  const { 
+    messages, 
+    input, 
+    handleInputChange, 
+    handleSubmit, 
+    append, 
+    isLoading, 
+    setInput,
+    setMessages,
+    stop
+  } = useChat({
     api: 'http://localhost:8000/chat/stream',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+    },
     body: {
-      // This will be included in the request body
-      file: file ? {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        // We'll handle the file content in the API route
-      } : undefined,
+      doc_id: "688ade13-d5b1-4480-9b45-4d7af0fdc3a2",
+      force_web_search: false,
     },
     onError: (error) => {
       console.error('Chat error:', error);
+      toast.error(
+        error.message || "An error occurred while processing your message"
+      );
+    },
+    onFinish: (message) => {
+      console.log('Message completed:', message);
     },
   });
+
+  const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
 
   const handleFileUpload = (selectedFile: File) => {
     setFile(selectedFile);
@@ -53,99 +68,56 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     append({ role: 'user', content: question });
   };
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    // If there's a file, append it to the form data
-    const formData = new FormData();
-    if (file) {
-      formData.append('file', file);
-    }
-    formData.append('message', input);
-  
-    // Use the form data in the request
-    fetch('/api/chat', {
-      method: 'POST',
-      body: formData,
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to send message');
-        }
-        return response.json();
-      })
-      .then(data => {
-        // Handle the response
-        append({ role: 'assistant', content: data.message });
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-  };
-
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-3xl mx-auto space-y-8">
-          {messages.length > 0 ? (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-lg ${
-                  message.role === 'user' ? 'bg-blue-100 ml-8' : 'bg-gray-100 mr-8'
-                }`}
-              >
-                <div className="font-semibold">
-                  {message.role === 'user' ? 'You' : 'AI'}:
-                </div>
-                <div>{message.content}</div>
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4"
+      >
+        <div className="max-w-3xl mx-auto space-y-6">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground">
+              <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
+              <p className="mb-6">Ask me anything or select a suggested question below.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mb-8">
+                {suggestedQuestions.map((question, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto py-3 text-left justify-start whitespace-normal"
+                    onClick={() => handleQuestionClick(question)}
+                  >
+                    {question}
+                  </Button>
+                ))}
               </div>
-            ))
-          ) : (
-            <>
-              {/* Suggested Questions Section */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-medium">Questions about this PDF</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {suggestedQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className="h-auto min-h-[60px] text-left whitespace-normal"
-                      onClick={() => handleQuestionClick(question)}
-                    >
-                      {question}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <Separator className="my-6" />
-
-              {/* More Questions Section */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-medium">More questions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {moreQuestions.map((question, index) => (
-                    <Button
-                      key={index}
-                      variant="ghost"
-                      className="h-auto min-h-[60px] text-left whitespace-normal justify-start"
-                      onClick={() => handleQuestionClick(question)}
-                    >
-                      {question}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </>
+            </div>
           )}
+
+          {messages.map((message) => (
+            <div key={message.id} className="w-full">
+              <PreviewMessage
+                key={message.id}
+                chatId={chatId}
+                message={message}
+                isLoading={isLoading && messages[messages.length - 1]?.id === message.id}
+              />
+            </div>
+          ))}
+
+          {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
+            <div className="w-full">
+              <ThinkingMessage />
+            </div>
+          )}
+
+          <div ref={messagesEndRef} className="h-4" />
         </div>
       </div>
 
-      {/* Input Footer */}
+      {/* Input Area */}
       <div className="border-t p-4 bg-background">
         <div className="max-w-3xl mx-auto space-y-2">
           <div className="flex items-center gap-2">
@@ -162,7 +134,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                   size="icon"
                   className="h-5 w-5"
                   onClick={() => setFile(null)}
-                >
+        >
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -170,22 +142,28 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
           )}
           </div>
           
-          <form onSubmit={onSubmit} className="relative">
+          <form onSubmit={handleSubmit} className="relative">
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
               placeholder="Ask assistant, use @ to mention specific PDFs..."
               className="min-h-[60px] pr-16 resize-none"
-              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }
+              }}
+              disabled={isLoading}
             />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
+                  <Button
                     type="button"
-                    variant="ghost" 
-                    size="icon" 
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8"
                     onClick={() => setIsUploadDialogOpen(true)}
                   >
@@ -197,21 +175,20 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                   <p className="text-xs">Less than 150 pages and 15 MB per file</p>
                 </TooltipContent>
               </Tooltip>
-              <Button 
-                type="submit" 
-                size="icon" 
+                  <Button
+                    type="submit"
+                    size="icon"
                 className="h-8 w-8 bg-primary text-primary-foreground"
-                disabled={!input.trim() || isLoading}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+                    disabled={!input.trim() || isLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
-      
-      <UploadDialog 
-        open={isUploadDialogOpen} 
+      </div>
+      <UploadDialog
+        open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
         onFileUpload={handleFileUpload}
       />
