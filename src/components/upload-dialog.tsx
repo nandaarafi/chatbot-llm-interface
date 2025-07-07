@@ -20,9 +20,16 @@ interface UploadDialogProps {
   onOpenChange: (open: boolean) => void;
   onFileUpload: (file: File) => void;
   onUploadSuccess?: () => void;
+  sessionId?: string;
 }
 
-export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess }: UploadDialogProps) {
+export function UploadDialog({ 
+  open, 
+  onOpenChange, 
+  onFileUpload,
+  onUploadSuccess,
+  sessionId
+}: UploadDialogProps) {
   const [files, setFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -52,6 +59,7 @@ export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess
     setIsUploading(true)
     const formData = new FormData()
     
+    // Add files to form data
     files.forEach((file) => {
       formData.append("files", file)
     })
@@ -59,20 +67,18 @@ export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess
     const toastId = toast.loading(`Uploading ${files.length} file(s)...`)
 
     try {
-      const response = await fetch("http://localhost:8000/upload/", {
-        method: "POST",
+      // Call our API endpoint instead of directly calling the Python backend
+      const response = await fetch('/api/upload', {
+        method: 'POST',
         body: formData,
-        headers: {
-          // Add auth headers if needed
-          // 'Authorization': `Bearer ${yourAuthToken}`,
-        },
+        // Headers are automatically set by the browser for FormData
       })
 
       const result = await response.json()
 
       if (!response.ok) {
         throw new Error(
-          result.detail || "Failed to upload files. Please try again."
+          result.error || "Failed to upload files. Please try again."
         )
       }
 
@@ -82,9 +88,8 @@ export function UploadDialog({ open, onOpenChange, onFileUpload, onUploadSuccess
         inputRef.current.value = ""
       }
 
-      // Show success message
       toast.success("Upload successful", {
-        description: `${files.length} file(s) have been uploaded successfully.`,
+        description: `${result.files?.length || files.length} file(s) have been uploaded and processed.`,
         id: toastId,
       })
 

@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ReactNode } from "react";
 import "./globals.css";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Toaster, toast } from 'sonner'
-import  { PanelLeftOpen } from "lucide-react"
+import ClientLayout from "@/components/landing-page/LayoutClient";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,32 +15,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Your App Name",
-  description: "Your application description",
+  title: "Command Your Chatbot",
+  description: "Command Your Chatbot",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex h-screen bg-background overflow-hidden">
-            <div className="h-screen sticky top-0 flex-shrink-0 border-r">
-              <AppSidebar />
-              <PanelLeftOpen />
-            </div>
-            <main className="flex-1 overflow-y-auto transition-[margin] duration-300 ease-in-out">
-              <div className="max-w-7xl mx-auto w-full p-4">
-                {children}
-              </div>
-            </main>
-          </div>
-        </SidebarProvider>
-        <Toaster position="top-center" />
+          <ClientLayout>
+            {children}
+          </ClientLayout>
       </body>
     </html>
   );

@@ -1,75 +1,64 @@
 import { Pool } from 'pg';
-import { neon } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
+import { env } from '../env/setting-env';
 
-export type QueryResult<T = any> = {
-  rows: T[];
-  rowCount: number;
-  command: string;
-};
+declare global {
+  var pg: Pool | undefined;
+}
 
-const databaseUrl = process.env.DATABASE_URL;
+// For server components and API routes
+let pool: Pool;
+
+const databaseUrl = env.DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-// For server-side queries (API routes, server components)
-const pool = new Pool({
-  connectionString: databaseUrl,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
-
-// For serverless/edge environments
-const sql = neon(databaseUrl);
-
-// Simple query function for server-side
-const query = async <T = any>(
-  text: string,
-  params?: any[]
-): Promise<QueryResult<T>> => {
+// Function to ensure schema exists
+async function ensureSchemaExists(pool: Pool) {
   const client = await pool.connect();
   try {
-    const result = await client.query(text, params);
-    return result;
+    await client.query('CREATE SCHEMA IF NOT EXISTS vidiopintar');
   } finally {
     client.release();
   }
-};
+}
 
-// For serverless/edge environments
-export const db = {
-  // Server-side query (Node.js)
-  query,
-  
-  // Client-side query (Edge/Serverless)
-  sql: async <T = any>(strings: TemplateStringsArray, ...values: any[]): Promise<T[]> => {
-    const queryString = strings.reduce(
-      (acc, str, i) => acc + str + (values[i] !== undefined ? `$${i + 1}` : ''),
-      ''
-    );
-    const result = await sql<T>(queryString, values);
-    return Array.isArray(result) ? result : [];
-  },
-  
-  // Close the connection pool
-  close: async () => {
-    await pool.end();
-  },
-};
+if (env.NODE_ENV === 'production') {
+  pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
+} else {
+  // In development, we can reuse the same pool
+  if (!global.pg) {
+    global.pg = new Pool({
+      connectionString: databaseUrl,
+      ssl: false, // Disable SSL for local development
+    });
+  }
+  pool = global.pg;
+}
 
-// Example usage:
-/*
-// Server-side
-const result = await db.query('SELECT * FROM users WHERE id = $1', [1]);
-
-// Client-side (in a server component or API route)
-const data = await db.sql`SELECT * FROM users WHERE id = ${1}`;
-const user = data[0];
-*/
-
-// Handle process termination
-process.on('exit', () => {
-  db.close().catch(console.error);
+// Ensure schema exists before proceeding
+ensureSchemaExists(pool).catch(err => {
+  console.error('Failed to ensure schema exists:', err);
+  process.exit(1);
 });
+
+// Create a SQL client for server components
+export const db = drizzlePg(pool);
+
+// Create a SQL client for edge runtime (Neon only)
+export const dbEdge = () => {
+  if (!databaseUrl.includes('neon.tech')) {
+    throw new Error('dbEdge is only supported for Neon databases');
+  }
+  const sql = neon(databaseUrl);
+  return drizzle(sql);
+};
