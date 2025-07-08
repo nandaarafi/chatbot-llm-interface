@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface HomeClientProps {
   suggestedQuestions: string[];
@@ -43,10 +44,36 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     { id: 'doc-5', name: 'User_Research.pdf' },
   ];
 
+  const [selectedDocuments, setSelectedDocuments] = useState<Array<{id: string, name: string}>>([]);
+
   const handleDocumentSelect = (docId: string) => {
-    // Handle document selection here
-    console.log('Selected document ID:', docId);
-    // You can add your logic here, for example, to load the selected document
+    try {
+      // Find the selected document
+      const selectedDoc = documents.find(doc => doc.id === docId);
+      if (!selectedDoc) {
+        console.error('Document not found');
+        toast.error('Selected document not found');
+        return;
+      }
+      
+      // Check if document is already selected
+      if (selectedDocuments.some(doc => doc.id === docId)) {
+        toast.info('Document already selected');
+        return;
+      }
+      
+      // Add to selected documents
+      setSelectedDocuments(prev => [...prev, selectedDoc]);
+      
+      toast.success(`Added: ${selectedDoc.name}`);
+    } catch (error) {
+      console.error('Error selecting document:', error);
+      toast.error('Failed to select document');
+    }
+  };
+
+  const removeDocument = (docId: string) => {
+    setSelectedDocuments(prev => prev.filter(doc => doc.id !== docId));
   };
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
@@ -84,7 +111,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const { 
     messages, 
     input, 
-    handleInputChange, 
+    handleInputChange: originalHandleInputChange, 
     handleSubmit: chatHandleSubmit, 
     append, 
     isLoading, 
@@ -140,6 +167,102 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     },
   });
 
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionPosition, setMentionPosition] = useState({ x: 100, y: 100 });
+  const commandRef = useRef<HTMLDivElement>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    
+    // Check if "@" was just typed
+    const lastChar = value[value.length - 1];
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const lastAtPos = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastChar === '@') {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const rect = textarea.getBoundingClientRect();
+        const textareaStyle = window.getComputedStyle(textarea);
+        const lineHeight = parseInt(textareaStyle.lineHeight);
+        const paddingTop = parseInt(textareaStyle.paddingTop);
+        const scrollTop = textarea.scrollTop;
+        
+        // Calculate position for dropdown
+        const tempElement = document.createElement('div');
+        tempElement.style.position = 'absolute';
+        tempElement.style.visibility = 'hidden';
+        tempElement.style.whiteSpace = 'pre';
+        tempElement.style.font = textareaStyle.font;
+        tempElement.style.padding = textareaStyle.padding;
+        tempElement.textContent = textBeforeCursor;
+        document.body.appendChild(tempElement);
+        
+        const width = tempElement.offsetWidth;
+        const lines = textBeforeCursor.split('\n');
+        const lineNumber = lines.length;
+        const top = rect.top + paddingTop + (lineNumber * lineHeight) - scrollTop;
+        
+        document.body.removeChild(tempElement);
+        
+        setMentionPosition({ x: rect.left + width, y: top });
+        setShowMentionDropdown(true);
+        setMentionQuery('');
+      }
+    } else if (showMentionDropdown && lastAtPos !== -1) {
+      // If dropdown is open, update the search query
+      const query = textBeforeCursor.substring(lastAtPos + 1);
+      setMentionQuery(query);
+    } else if (showMentionDropdown) {
+      setShowMentionDropdown(false);
+    }
+    originalHandleInputChange(e);
+  };
+
+  const handleDocumentMention = (docName: string) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const startPos = textarea.selectionStart;
+    const value = textarea.value;
+    const textBeforeCursor = value.substring(0, startPos);
+    const lastAtPos = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtPos === -1) return;
+    
+    const newText = 
+      value.substring(0, lastAtPos) + 
+      `@${docName} ` + 
+      value.substring(startPos);
+    
+    setInput(newText);
+    setShowMentionDropdown(false);
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      const newCursorPos = lastAtPos + docName.length + 2; // +2 for @ and space
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (commandRef.current && !commandRef.current.contains(event.target as Node)) {
+        setShowMentionDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -176,9 +299,14 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     }, 100);
   };
 
-  const handleFileUpload = (selectedFile: File) => {
-    setFile(selectedFile);
+  const handleFileUpload = (files: File[]) => {
+    const newDocuments = files.map(file => ({
+      id: file.name,
+      name: file.name
+    }));
+    setSelectedDocuments(prev => [...prev, ...newDocuments]);
     setIsUploadDialogOpen(false);
+    toast.success(`Added ${files.length} file(s) successfully`);
   };
 
   return (
@@ -254,38 +382,101 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {file && (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-muted rounded-full px-3 py-1 text-sm">
-                  <span>{file.name}</span>
+            <div className="flex flex-wrap gap-2">
+              {selectedDocuments.map((doc) => (
+                <div key={doc.id} className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
+                  <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
+                    {doc.name}
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-5 w-5"
+                    className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeDocument(doc.id);
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {file && (
+                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
+                  <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
+                    {file.name}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
                     onClick={() => setFile(null)}
                   >
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           
           <form onSubmit={handleSubmit} className="relative">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Ask assistant, use @ to mention specific PDFs..."
-              className="min-h-[60px] pr-16 resize-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(e as any);
-                }
-              }}
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    setShowMentionDropdown(false);
+                    handleSubmit(e as any);
+                  } else if (e.key === 'Escape' && showMentionDropdown) {
+                    e.preventDefault();
+                    setShowMentionDropdown(false);
+                  } else if (showMentionDropdown && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                    e.preventDefault();
+                    // Command component handles keyboard navigation
+                  }
+                }}
+                placeholder="Ask assistant, use @ to mention specific PDFs..."
+                className="min-h-[60px] pr-16 resize-none"
+                disabled={isLoading}
+              />
+              
+              {/* Mention Dropdown */}
+              {showMentionDropdown && (
+                <div className="absolute bottom-full left-0 mb-1 w-full max-w-md">
+                  <Command className="w-full rounded-lg border bg-popover shadow-md">
+                    <CommandInput 
+                      placeholder="Search documents..."
+                      value={mentionQuery}
+                      onValueChange={setMentionQuery}
+                      autoFocus
+                    />
+                    <CommandList className="max-h-60 overflow-auto">
+                      <CommandEmpty>No documents found.</CommandEmpty>
+                      <CommandGroup>
+                        {documents
+                          .filter(doc => 
+                            doc.name.toLowerCase().includes(mentionQuery.toLowerCase()) &&
+                            !selectedDocuments.some(selected => selected.id === doc.id)
+                          )
+                          .map((doc) => (
+                            <CommandItem
+                              key={doc.id}
+                              onSelect={() => handleDocumentMention(doc.name)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="truncate">{doc.name}</span>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </div>
+              )}
+            </div>
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>

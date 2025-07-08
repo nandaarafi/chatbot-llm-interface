@@ -54,23 +54,21 @@ export default async function LayoutPrivate({
         name: dbUser.name,
       };
 
-  return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen bg-background">
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex h-screen bg-background overflow-hidden">
-            <div className="h-screen sticky top-0 flex-shrink-0 border-r">
-              <AppSidebar user={userData}/>
-              <PanelLeftOpen />
-            </div>
-            <main className="flex-1 overflow-y-auto transition-[margin] duration-300 ease-in-out">
-              <div className="max-w-7xl mx-auto w-full p-4">
-                {children}
+      return (
+        <div className={`${geistSans.variable} ${geistMono.variable}`}>
+          <SidebarProvider defaultOpen={true}>
+            <div className="flex h-screen bg-background overflow-hidden">
+              <div className="h-screen sticky top-0 flex-shrink-0 border-r">
+                <AppSidebar user={userData}/>
+                <PanelLeftOpen />
               </div>
-            </main>
-          </div>
-        </SidebarProvider>
-      </body>
-    </html>
-  );
+              <main className="flex-1 overflow-y-auto transition-[margin] duration-300 ease-in-out">
+                <div className="max-w-7xl mx-auto w-full p-4">
+                  {children}
+                </div>
+              </main>
+            </div>
+          </SidebarProvider>
+        </div>
+      );
 }

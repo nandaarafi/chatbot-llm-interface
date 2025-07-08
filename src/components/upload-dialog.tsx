@@ -18,7 +18,7 @@ import { Upload, X } from "lucide-react"
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onFileUpload: (file: File) => void;
+  onFileUpload: (files: File[]) => void;
   onUploadSuccess?: () => void;
   sessionId?: string;
 }
@@ -98,9 +98,9 @@ export function UploadDialog({
         onUploadSuccess()
       }
 
-      // Close the dialog
+      // Close the dialog and pass all files to parent
       onOpenChange(false)
-      onFileUpload(files[0]);
+      onFileUpload(files);
   
     } catch (error) {
       console.error("Error uploading files:", error)
