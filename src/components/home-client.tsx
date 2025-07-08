@@ -225,28 +225,41 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const handleDocumentMention = (docName: string) => {
     if (!textareaRef.current) return;
     
+    // Find the document in the documents array
+    const selectedDoc = documents.find(doc => doc.name === docName);
+    
+    if (selectedDoc) {
+      // Check if document is already selected
+      if (!selectedDocuments.some(doc => doc.id === selectedDoc.id)) {
+        setSelectedDocuments(prev => [...prev, selectedDoc]);
+        toast.success(`Added: ${docName}`);
+      } else {
+        toast.info(`${docName} is already selected`);
+      }
+    }
+    
+    // Remove the @mention from input
     const textarea = textareaRef.current;
     const startPos = textarea.selectionStart;
     const value = textarea.value;
     const textBeforeCursor = value.substring(0, startPos);
     const lastAtPos = textBeforeCursor.lastIndexOf('@');
     
-    if (lastAtPos === -1) return;
+    if (lastAtPos !== -1) {
+      const newText = 
+        value.substring(0, lastAtPos) + 
+        value.substring(startPos);
+      
+      setInput(newText);
+      
+      // Focus back on textarea
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(lastAtPos, lastAtPos);
+      }, 0);
+    }
     
-    const newText = 
-      value.substring(0, lastAtPos) + 
-      `@${docName} ` + 
-      value.substring(startPos);
-    
-    setInput(newText);
     setShowMentionDropdown(false);
-    
-    // Focus back on textarea
-    setTimeout(() => {
-      const newCursorPos = lastAtPos + docName.length + 2; // +2 for @ and space
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
   };
 
   // Close dropdown when clicking outside
