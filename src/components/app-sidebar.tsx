@@ -69,7 +69,7 @@ export function AppSidebar({ user }: { user: any }) {
   return (
     <Sidebar className="h-full">
       <SidebarHeader className="flex items-center justify-between p-4">
-        {open && <span className="font-semibold">Your Logo</span>}
+        {open && <span className="font-semibold">Mindscribe</span>}
         <Button 
           variant="ghost" 
           size="icon" 

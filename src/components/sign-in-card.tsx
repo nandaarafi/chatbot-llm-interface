@@ -82,7 +82,7 @@ const [callbackUrl, setCallbackUrl] = useState("/chat");
         </div>
       )}
       <CardContent className="space-y-5 px-0 pb-0">
-        <form onSubmit={onCredentialSignIn} className="space-y-2.5">
+        {/* <form onSubmit={onCredentialSignIn} className="space-y-2.5">
           <Input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -107,7 +107,7 @@ const [callbackUrl, setCallbackUrl] = useState("/chat");
             )}
           </Button>
         </form>
-        <Separator />
+        <Separator /> */}
         <div className="flex flex-col gap-y-2.5">
           <Button
             onClick={() => signInWithGoogle()}
@@ -124,12 +124,12 @@ const [callbackUrl, setCallbackUrl] = useState("/chat");
             Continue with Google
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        {/* <p className="text-xs text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link href="/sign-up" onClick={() => setLoading(true)}>
             <span className="text-sky-700 hover:underline">Sign up</span>
           </Link>
-        </p>
+        </p> */}
       </CardContent>
     </Card>
   );

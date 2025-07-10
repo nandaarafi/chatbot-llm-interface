@@ -22,14 +22,19 @@ export const createDocument = async (documentData: Document) => {
 /**
  * Get a single document by ID
  */
-export const getDocumentById = async (id: string) => {
+export const getDocumentById = async (documentId: string) => {
   try {
     const [document] = await db
       .select()
       .from(documents)
-      .where(eq(documents.id, id))
+      .where(eq(documents.id, documentId))
       .limit(1);
-    return document || null;
+    
+    if (!document) {
+      throw new Error('Document not found');
+    }
+    
+    return document;
   } catch (error) {
     console.error('Error getting document by ID:', error);
     throw new Error('Failed to retrieve document');
@@ -49,6 +54,65 @@ export const getDocumentByUserId = async (userId: string) => {
   } catch (error) {
     console.error('Error getting documents by user ID:', error);
     throw new Error('Failed to retrieve user documents');
+  }
+};
+/**
+ * Get all documents for a specific user
+ * @param userId The ID of the user
+ * @returns Array of document objects
+ */
+export const getDocumentsByUserId = async (userId: string) => {
+  try {
+    const userDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.userId, userId))
+      .orderBy(desc(documents.createdAt)); // Most recent first
+    
+    return userDocuments;
+  } catch (error) {
+    console.error('Error getting user documents:', error);
+    throw new Error('Failed to retrieve user documents');
+  }
+};
+
+/**
+ * Get documents with pagination
+ * @param userId The ID of the user
+ * @param limit Number of documents per page
+ * @param offset Number of documents to skip
+ * @returns Paginated list of documents and total count
+ */
+export const getPaginatedUserDocuments = async (
+  userId: string, 
+  limit: number = 10, 
+  offset: number = 0
+) => {
+  try {
+    const [documentsList, total] = await Promise.all([
+      // Get paginated documents
+      db
+        .select()
+        .from(documents)
+        .where(eq(documents.userId, userId))
+        .orderBy(desc(documents.createdAt))
+        .limit(limit)
+        .offset(offset),
+      
+      // Get total count
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(documents)
+        .where(eq(documents.userId, userId))
+    ]);
+
+    return {
+      documents: documentsList,
+      total: total[0]?.count || 0
+    };
+  } catch (error) {
+    console.error('Error getting paginated documents:', error);
+    throw new Error('Failed to retrieve paginated documents');
   }
 };
 

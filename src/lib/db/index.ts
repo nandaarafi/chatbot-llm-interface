@@ -17,16 +17,6 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-// Function to ensure schema exists
-async function ensureSchemaExists(pool: Pool) {
-  const client = await pool.connect();
-  try {
-    await client.query('CREATE SCHEMA IF NOT EXISTS vidiopintar');
-  } finally {
-    client.release();
-  }
-}
-
 if (env.NODE_ENV === 'production') {
   pool = new Pool({
     connectionString: databaseUrl,
@@ -44,12 +34,6 @@ if (env.NODE_ENV === 'production') {
   }
   pool = global.pg;
 }
-
-// Ensure schema exists before proceeding
-ensureSchemaExists(pool).catch(err => {
-  console.error('Failed to ensure schema exists:', err);
-  process.exit(1);
-});
 
 // Create a SQL client for server components
 export const db = drizzlePg(pool);

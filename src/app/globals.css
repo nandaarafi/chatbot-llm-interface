@@ -120,3 +120,63 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Ensure the dropdown appears above other content */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* Style for the document dropdown */
+.document-dropdown {
+  @apply bg-popover text-popover-foreground rounded-lg border shadow-lg;
+  min-width: 240px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Style for dropdown items */
+.document-dropdown-item {
+  @apply flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground;
+}
+
+/* Style for selected items */
+.document-dropdown-item.selected {
+  @apply bg-accent/50;
+}
+
+/* Style for the loading state */
+.document-dropdown-loading {
+  @apply p-4 flex flex-col gap-2;
+}
+
+/* Style for the empty state */
+.document-dropdown-empty {
+  @apply p-4 text-muted-foreground text-sm text-center;
+}
+
+/* Style for the error state */
+.document-dropdown-error {
+  @apply p-4 text-destructive text-sm;
+}
+
+/* Ensure the dropdown appears above the textarea */
+.relative > [data-radix-popper-content-wrapper] {
+  transform: translateY(-0.5rem) !important;
+}
+
+/* Smooth transitions for the dropdown */
+[data-side="top"] {
+  animation: slideDownAndFade 200ms ease-out;
+}
+
+@keyframes slideDownAndFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

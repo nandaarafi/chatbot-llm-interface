@@ -22,8 +22,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Your App Name",
-  description: "Your application description",
+  title: "Ask Your PDF",
+  description: "Chat with your PDF",
 };
 
 export default async function LayoutPrivate({
@@ -58,12 +58,12 @@ export default async function LayoutPrivate({
         <div className={`${geistSans.variable} ${geistMono.variable}`}>
           <SidebarProvider defaultOpen={true}>
             <div className="flex h-screen bg-background overflow-hidden">
-              <div className="h-screen sticky top-0 flex-shrink-0 border-r">
+              <div className="h-screen sticky top-0 flex-shrink-0">
                 <AppSidebar user={userData}/>
-                <PanelLeftOpen />
+                {/* <PanelLeftOpen /> */}
               </div>
-              <main className="flex-1 overflow-y-auto transition-[margin] duration-300 ease-in-out">
-                <div className="max-w-7xl mx-auto w-full p-4">
+              <main className="flex-1 overflow-y-auto p-4">
+                <div className="max-w-7xl mx-auto w-full">
                   {children}
                 </div>
               </main>

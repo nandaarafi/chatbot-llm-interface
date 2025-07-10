@@ -6,25 +6,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Paperclip, Globe, Pause, Send, X, Plus, ChevronDown, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { UploadDialog } from "@/components/upload-dialog";
+import { UploadDialog } from "@/components/chat/upload-dialog";
 import { useChat } from 'ai/react';
 import { toast } from "sonner"
-import { PreviewMessage, ThinkingMessage } from "@/components/message";
+import { PreviewMessage, ThinkingMessage } from "@/components/chat/message";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { getDocumentsByUserId } from '@/lib/db/query/document';
+import { DocumentDropdown } from './document-dropdown';
 
 interface HomeClientProps {
   suggestedQuestions: string[];
   moreQuestions: string[];
 }
+type Document = {
+  id: string;
+  name: string;
+};
 
 export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProps) {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -35,37 +35,24 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const chatId = "home-chat";
   const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
 
-  // Dummy list of documents
-  const documents = [
-    { id: 'doc-1', name: 'Project_Proposal.pdf' },
-    { id: 'doc-2', name: 'Meeting_Notes_April.pdf' },
-    { id: 'doc-3', name: 'Financial_Report_2023.pdf' },
-    { id: 'doc-4', name: 'Product_Roadmap.pdf' },
-    { id: 'doc-5', name: 'User_Research.pdf' },
-  ];
+  const [documents, setDocuments] = useState<Array<{ id: string; name: string }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDocumentDropdownOpen, setIsDocumentDropdownOpen] = useState(false);
 
-  const [selectedDocuments, setSelectedDocuments] = useState<Array<{id: string, name: string}>>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 
-  const handleDocumentSelect = (docId: string) => {
+  const handleDocumentSelect = (doc: Document) => {
     try {
-      // Find the selected document
-      const selectedDoc = documents.find(doc => doc.id === docId);
-      if (!selectedDoc) {
-        console.error('Document not found');
-        toast.error('Selected document not found');
-        return;
-      }
-      
       // Check if document is already selected
-      if (selectedDocuments.some(doc => doc.id === docId)) {
+      if (selectedDocuments.some(d => d.id === doc.id)) {
         toast.info('Document already selected');
         return;
       }
       
       // Add to selected documents
-      setSelectedDocuments(prev => [...prev, selectedDoc]);
-      
-      toast.success(`Added: ${selectedDoc.name}`);
+      setSelectedDocuments(prev => [...prev, { id: doc.id, name: doc.name }]);
+      toast.success(`Added: ${doc.name}`);
     } catch (error) {
       console.error('Error selecting document:', error);
       toast.error('Failed to select document');
@@ -114,7 +101,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     handleInputChange: originalHandleInputChange, 
     handleSubmit: chatHandleSubmit, 
     append, 
-    isLoading, 
+    isLoading: chatIsLoading, 
     setInput,
     setMessages,
     stop
@@ -125,9 +112,9 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
       'Accept': 'text/event-stream',
     },
     body: {
-      doc_id: "688ade13-d5b1-4480-9b45-4d7af0fdc3a2",
+      doc_id: "319e6e41-fc39-4a28-870d-c7f44a9570c4",
       force_web_search: false,
-      session_id: currentSessionId,
+      // session_id: currentSessionId,
     },
     onResponse: async (response) => {
       if (input.trim() && currentSessionId) {
@@ -243,6 +230,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     const startPos = textarea.selectionStart;
     const value = textarea.value;
     const textBeforeCursor = value.substring(0, startPos);
+    
     const lastAtPos = textBeforeCursor.lastIndexOf('@');
     
     if (lastAtPos !== -1) {
@@ -328,11 +316,11 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
       {/* Chat Messages */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4"
+        className="flex-1 overflow-y-auto p-4 pb-0"
       >
         <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center p-4 text-muted-foreground">
               <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
               <p className="mb-6">Ask me anything or select a suggested question below.</p>
               
@@ -349,52 +337,38 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 ))}
               </div>
             </div>
+          ) : (
+            <>
+              {messages.map((message) => (
+                <div key={message.id} className="w-full">
+                  <PreviewMessage
+                    chatId={chatId}
+                    message={message}
+                    isLoading={chatIsLoading && messages[messages.length - 1]?.id === message.id}
+                  />
+                </div>
+              ))}
+
+              {chatIsLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
+                <div className="w-full">
+                  <ThinkingMessage />
+                </div>
+              )}
+            </>
           )}
-
-          {messages.map((message) => (
-            <div key={message.id} className="w-full">
-              <PreviewMessage
-                key={message.id}
-                chatId={chatId}
-                message={message}
-                isLoading={isLoading && messages[messages.length - 1]?.id === message.id}
-              />
-            </div>
-          ))}
-
-          {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
-            <div className="w-full">
-              <ThinkingMessage />
-            </div>
-          )}
-
           <div ref={messagesEndRef} className="h-4" />
         </div>
       </div>
 
       {/* Input Area */}
       <div className="border-t p-4 bg-background">
-        <div className="max-w-3xl mx-auto space-y-2">
+        <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                {documents.map((doc) => (
-                  <DropdownMenuItem 
-                    key={doc.id} 
-                    onClick={() => handleDocumentSelect(doc.id)}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="truncate">{doc.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <DocumentDropdown 
+            selectedDocuments={selectedDocuments}
+            onSelect={handleDocumentSelect}
+            onRemove={removeDocument}
+          />
             <div className="flex flex-wrap gap-2">
               {selectedDocuments.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
@@ -453,7 +427,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 }}
                 placeholder="Ask assistant, use @ to mention specific PDFs..."
                 className="min-h-[60px] pr-16 resize-none"
-                disabled={isLoading}
+                disabled={chatIsLoading}
               />
               
               {/* Mention Dropdown */}
@@ -512,16 +486,20 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 type="submit"
                 size="icon"
                 className="h-8 w-8 bg-primary text-primary-foreground"
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || chatIsLoading}
               >
-                <Send className="h-4 w-4" />
+                {chatIsLoading ? (
+                  <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </form>
         </div>
       </div>
       <UploadDialog
-        open={isUploadDialogOpen}
+        open={isUploadDialogOpen} 
         onOpenChange={setIsUploadDialogOpen}
         onFileUpload={handleFileUpload}
         sessionId={chatId}

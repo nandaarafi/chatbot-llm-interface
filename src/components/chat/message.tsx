@@ -3,11 +3,11 @@
 import type { Message } from "ai";
 
 import { SparklesIcon } from "@/components/icons";
-import { Markdown } from "@/components/markdown";
-import { PreviewAttachment } from "@/components/preview-attachment";
+import { Markdown } from "@/components/chat/markdown";
+import { PreviewAttachment } from "@/components/chat/preview-attachment";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Weather } from "@/components/weather";
+import { Weather } from "@/components/chat/weather";
 
 export const PreviewMessage = ({
   message,
@@ -94,16 +94,16 @@ export const ThinkingMessage = () => {
 
   return (
     <motion.div
-      className="w-full mx-auto max-w-3xl px-4 group/message "
+      className="w-full mx-auto max-w-3xl px-4 group/message min-h-[60px]"
       initial={{ y: 5, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
       data-role={role}
     >
       <div
         className={cn(
-          "flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl",
+          "flex gap-4 w-full py-4 px-3 rounded-xl",
           {
-            "group-data-[role=user]/message:bg-muted": true,
+            "bg-muted/50": true,
           },
         )}
       >
@@ -111,9 +111,15 @@ export const ThinkingMessage = () => {
           <SparklesIcon size={14} />
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
-            Thinking...
+        <div className="flex items-center">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center justify-center gap-1">
+                <div className="size-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="size-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="size-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 
-import { HomeClient } from "@/components/home-client";
+import { HomeClient } from "@/components/chat/home-client";
 
 export default function Home() {
   const suggestedQuestions = [

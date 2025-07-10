@@ -1,7 +1,7 @@
 "use client";
 
-import { PreviewMessage, ThinkingMessage } from "@/components/message";
-import { MultimodalInput } from "@/components/multi-modal-input";
+import { PreviewMessage, ThinkingMessage } from "@/components/chat/message";
+import { MultimodalInput } from "@/components/chat/multi-modal-input";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { ToolInvocation } from "ai";
 import { useChat } from "ai/react";
@@ -26,7 +26,7 @@ export function Chat() {
       'Accept': 'text/event-stream',
     },
     body: {
-      doc_id: "688ade13-d5b1-4480-9b45-4d7af0fdc3a2",
+      doc_id: "f9d0f262-3a39-4a16-bcef-c17385d12d21",
       force_web_search: false,
     },
     onError: (error) => {
@@ -56,7 +56,7 @@ export function Chat() {
         ref={messagesContainerRef}
         className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4"
       >
-        {/* {messages.length === 0 && <Overview />} */}
+        {/* {messages.length === 0 && <Overview />}  */}
 
         {messages.map((message, index) => (
           <PreviewMessage

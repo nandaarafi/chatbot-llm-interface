@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Command Your Chatbot",
-  description: "Command Your Chatbot",
+  title: "Ask Your PDF",
+  description: "Ask Your PDF",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

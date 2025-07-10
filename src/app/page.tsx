@@ -50,15 +50,7 @@ export default function Page() {
                 </button>
               </div>
 
-              <Button
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-
-                  onClick={() => {
-                    toast.success("Success notification from Sonner!");
-                  }}
-              >
-                Test Toast Notification
-              </Button>
+              
 
               {/* Main Heading */}
               <h1 className="max-w-4xl text-5xl font-bold leading-tight tracking-tight md:text-6xl text-foreground">
