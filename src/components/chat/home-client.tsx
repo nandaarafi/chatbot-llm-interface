@@ -106,7 +106,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     setMessages,
     stop
   } = useChat({
-    api: 'http://localhost:8000/chat/stream',
+    api: '/api/chat/stream',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
@@ -114,10 +114,17 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     body: {
       doc_id: "319e6e41-fc39-4a28-870d-c7f44a9570c4",
       force_web_search: false,
-      // session_id: currentSessionId,
+      session_id: currentSessionId,
     },
     onResponse: async (response) => {
-      if (input.trim() && currentSessionId) {
+      // console.log('Chat API Response:', {
+      //   status: response.status,
+      //   statusText: response.statusText,
+      //   headers: Object.fromEntries(response.headers.entries())
+      // });
+      // console.log("Get Current Session: ", currentSessionId)
+      if (currentSessionId) {
+        // console.log('Saving user message to session:', { currentSessionId, message: input.trim() });
         try {
           await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
             method: 'POST',
@@ -126,13 +133,16 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
               content: input.trim(),
             }),
           });
+          // console.log('Successfully saved user message');
         } catch (error) {
           console.error('Failed to save user message:', error);
         }
       }
     },
     onFinish: async (message) => {
+      // console.log('Chat stream finished. Final message:', message);
       if (currentSessionId) {
+        // console.log('Saving assistant message to session:', { currentSessionId, message: message.content });
         try {
           await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
             method: 'POST',
@@ -141,13 +151,18 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
               content: message.content,
             }),
           });
+          // console.log('Successfully saved assistant message');
         } catch (error) {
           console.error('Failed to save assistant message:', error);
         }
       }
     },
     onError: (error) => {
-      console.error('Chat error:', error);
+      console.error('Chat error occurred:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       toast.error(
         error.message || "An error occurred while processing your message"
       );
@@ -264,22 +279,31 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     };
   }, []);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!input.trim()) return;
-
+    if (!input.trim() || chatIsLoading || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
     try {
       // Create a new session if one doesn't exist
       let sessionId = currentSessionId;
       if (!sessionId) {
-        sessionId = await createNewSession();
+        const newSession = await createNewSession();
+        sessionId = newSession;  // Use the returned session ID directly
+        setCurrentSessionId(sessionId);
+        // console.log("HandleSubmit: ", sessionId);
       }
-
-      // Proceed with the chat submission
-      chatHandleSubmit(e);
+  
+      // Pass the session ID directly to the chat submission
+      await chatHandleSubmit(e);
     } catch (error) {
       console.error('Error in chat submission:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -414,7 +438,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === 'Enter' && !e.shiftKey && !chatIsLoading && !isSubmitting) {
                     e.preventDefault();
                     setShowMentionDropdown(false);
                     handleSubmit(e as any);
@@ -428,7 +452,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 }}
                 placeholder="Ask assistant to mention specific PDFs... use the Plus Button to do that"
                 className="min-h-[60px] pr-16 resize-none"
-                disabled={chatIsLoading}
+                disabled={chatIsLoading || isSubmitting}
               />
               
               {/* Mention Dropdown */}
@@ -487,9 +511,9 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                 type="submit"
                 size="icon"
                 className="h-8 w-8 bg-primary text-primary-foreground"
-                disabled={!input.trim() || chatIsLoading}
+                disabled={!input.trim() || chatIsLoading || isSubmitting}
               >
-                {chatIsLoading ? (
+                {chatIsLoading || isSubmitting ? (
                   <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />

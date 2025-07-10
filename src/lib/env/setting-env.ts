@@ -5,7 +5,6 @@ import 'dotenv/config';
 export const env = createEnv({
   server: {
     API_BASE_URL: z.string().url(),
-    PYTHON_BASE_URL: z.string().url(),
     NODE_ENV: z.string().min(1),
     DATABASE_URL: z.string().min(1),
     GOOGLE_CLIENT_ID: z.string().min(1),
