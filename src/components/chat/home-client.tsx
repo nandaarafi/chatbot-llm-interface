@@ -408,6 +408,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
           
           <form onSubmit={handleSubmit} className="relative">
             <div className="relative">
+              {/* <TextAreaWithDropdown/> */}
               <Textarea
                 ref={textareaRef}
                 value={input}
@@ -425,13 +426,13 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                     // Command component handles keyboard navigation
                   }
                 }}
-                placeholder="Ask assistant, use @ to mention specific PDFs..."
+                placeholder="Ask assistant to mention specific PDFs... use the Plus Button to do that"
                 className="min-h-[60px] pr-16 resize-none"
                 disabled={chatIsLoading}
               />
               
               {/* Mention Dropdown */}
-              {showMentionDropdown && (
+              {/* {showMentionDropdown && (
                 <div className="absolute bottom-full left-0 mb-1 w-full max-w-md">
                   <Command className="w-full rounded-lg border bg-popover shadow-md">
                     <CommandInput 
@@ -462,7 +463,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
                     </CommandList>
                   </Command>
                 </div>
-              )}
+              )} */}
             </div>
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
               <Tooltip>
