@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   useSidebar
 } from "@/components/ui/sidebar"
+import Link from "next/link";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -29,23 +30,25 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
-import { PanelLeftClose, PanelLeftOpen, Home, FileText, Settings,   CreditCard, 
+import { PanelLeftClose, PanelLeftOpen, MessageSquareText, Settings,   CreditCard, 
   LogOut,  
   Star, 
-  Bell  } from "lucide-react"
+  Bell,  
+  FileText} from "lucide-react"
+import { ChatHistory } from "./chat/chat-history";
 
 const NAVIGATION_ITEMS = [
-  { id: 'home', label: 'Home', icon: Home },
+  { id: 'chat', label: 'Chat', icon: MessageSquareText },
   { id: 'documents', label: 'Documents', icon: FileText },
 ];
 
 const CHAT_HISTORY_ITEMS = [
-  // { id: '1', title: 'Project Discussion' },
-  // { id: '2', title: 'Team Meeting Notes' },
-  // { id: '3', title: 'Feature Planning' },
-  // { id: '4', title: 'Bug Fixes' },
-  // { id: '5', title: 'Code Review' },
+  { id: '1', title: 'Effective Strategies' },
+  { id: '2', title: 'Simple AI Agent PDF' },
 ];
+
+
+
 
 
 export function AppSidebar({ user }: { user: any }) {
@@ -57,22 +60,23 @@ export function AppSidebar({ user }: { user: any }) {
     setOpenMobile,
     isMobile,
     toggleSidebar,
-  } = useSidebar()
+  } = useSidebar();
 
-  const router = useRouter();
+  const router = useRouter(); // Get the current router
+  const { pathname } = router; // Extract the current path name
 
   const handleSignOut = async () => {
     await authClient.signOut();
     router.push('/');
-  }
+  };
 
   return (
     <Sidebar className="h-full">
       <SidebarHeader className="flex items-center justify-between p-4">
         {open && <span className="font-semibold">Mindscribe</span>}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={toggleSidebar}
           className="h-8 w-8"
         >
@@ -84,7 +88,7 @@ export function AppSidebar({ user }: { user: any }) {
           <span className="sr-only">Toggle Sidebar</span>
         </Button>
       </SidebarHeader>
-      
+
       <SidebarContent className="flex flex-col h-full">
         {/* Navigation Group */}
         <SidebarGroup className="mb-4">
@@ -92,65 +96,55 @@ export function AppSidebar({ user }: { user: any }) {
           <SidebarMenu>
             {NAVIGATION_ITEMS.map(({ id, label, icon: Icon }) => (
               <SidebarMenuItem key={id}>
-                <SidebarMenuButton isActive={id === 'home'}>
-                  <Icon className="h-4 w-4" />
-                  {open && <span>{label}</span>}
-                </SidebarMenuButton>
+                <Link href={id === 'home' ? '/chat' : `/${id}`} className="w-full">
+                  <SidebarMenuButton
+                    isActive={pathname === `/${id}`} // Check if the current route matches
+                    className={pathname === `/${id}` ? 'bg-gray-200 hover:bg-gray-300' : ''}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {open && <span>{label}</span>}
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Chat History Group - Takes remaining space */}
+        {/* Chat History Group */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <SidebarGroup className="border-t pt-4">
             <SidebarGroupLabel>Chat History</SidebarGroupLabel>
-            <div className="overflow-y-auto flex-1">
-              <SidebarMenu>
-                {CHAT_HISTORY_ITEMS.length > 0 ? (
-                  CHAT_HISTORY_ITEMS.map(({ id, title }) => (
-                    <SidebarMenuItem key={id}>
-                      <SidebarMenuButton>
-                        <span className="truncate">
-                          {open ? title : `C${id}`}
-                        </span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))
-                ) : (
-                  <div className="px-4 py-2 text-sm text-muted-foreground text-center">
-                    {open ? 'No chat history yet' : 'No chats'}
-                  </div>
-                )}
-              </SidebarMenu>
-            </div>
+            <ChatHistory open={open} />
           </SidebarGroup>
         </div>
       </SidebarContent>
-      
+
       <SidebarFooter className="p-4">
-      <DropdownMenu>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="w-full justify-start h-auto p-2 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3">
-                {!user.image ? (
-                <div className="h-9 w-9 rounded-md bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden">
-                  <span className="text-xs font-medium text-white">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              ) : (
-                <Avatar>
-                  <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
-                  <AvatarFallback>
-                    {user.name?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              )}
+                  {!user.image ? (
+                    <div className="h-9 w-9 rounded-md bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center overflow-hidden">
+                      <span className="text-xs font-medium text-white">
+                        {user.name?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  ) : (
+                    <Avatar>
+                      <AvatarImage
+                        src={user.image}
+                        alt={user.name || 'User avatar'}
+                      />
+                      <AvatarFallback>
+                        {user.name?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   {open && (
                     <div className="flex flex-col items-start">
                       <span className="text-sm font-medium">{user.name}</span>
@@ -158,9 +152,7 @@ export function AppSidebar({ user }: { user: any }) {
                     </div>
                   )}
                 </div>
-                {open && (
-                  <Settings className="h-4 w-4 opacity-50" />
-                )}
+                {open && <Settings className="h-4 w-4 opacity-50" />}
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -174,7 +166,10 @@ export function AppSidebar({ user }: { user: any }) {
                 </div>
               ) : (
                 <Avatar>
-                  <AvatarImage src={user.image} alt={user.name || 'User avatar'} />
+                  <AvatarImage
+                    src={user.image}
+                    alt={user.name || 'User avatar'}
+                  />
                   <AvatarFallback>
                     {user.name?.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -205,17 +200,16 @@ export function AppSidebar({ user }: { user: any }) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem   
-                onClick={handleSignOut}
-                className="text-red-400 hover:!bg-red-400/20 hover:!text-red-400 focus:!bg-red-400/20 focus:!text-red-400"
-              >
-              <LogOut
-              className="mr-2 h-4 w-4" />
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="text-red-400 hover:!bg-red-400/20 hover:!text-red-400 focus:!bg-red-400/20 focus:!text-red-400"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

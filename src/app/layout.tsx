@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="en"
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-background">
+      <body className="h-full bg-background">
           <ClientLayout>
             {children}
           </ClientLayout>

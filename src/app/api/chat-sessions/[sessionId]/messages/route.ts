@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { messages, chatSession } from '@/lib/db/schema/app';
 import { eq, and } from 'drizzle-orm';
+import { getMessagesBySessionId } from '@/lib/db/query/message';
 
 // POST - Add a new message to a session
 export async function POST(
@@ -64,5 +65,31 @@ export async function POST(
       { error: 'Failed to save message' },
       { status: 500 }
     );
+  }
+}
+
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  try {
+    // Await the params object before using sessionId
+    const { sessionId } = await params
+    console.log(sessionId)
+
+    // Get the session with messages
+    const messages = await getMessagesBySessionId(sessionId)
+    console.log(messages)
+
+    if (!messages) {
+      return new NextResponse('Session not found', { status: 404 });
+    }
+
+    // Return the messages array directly
+    return NextResponse.json(messages || []);
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

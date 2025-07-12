@@ -55,15 +55,14 @@ export default async function LayoutPrivate({
       };
 
       return (
-        <div className={`${geistSans.variable} ${geistMono.variable}`}>
+        <div className={`${geistSans.variable} ${geistMono.variable} h-full`}>
           <SidebarProvider defaultOpen={true}>
-            <div className="flex h-screen bg-background overflow-hidden">
-              <div className="h-screen sticky top-0 flex-shrink-0">
+            <div className="flex min-h-screen bg-background">
+              <div className="sticky top-0 h-screen flex-shrink-0 border-r">
                 <AppSidebar user={userData}/>
-                {/* <PanelLeftOpen /> */}
               </div>
-              <main className="flex-1 overflow-y-auto p-4">
-                <div className="max-w-7xl mx-auto w-full">
+              <main className="flex-1 overflow-y-auto">
+                <div className="h-full w-full">
                   {children}
                 </div>
               </main>

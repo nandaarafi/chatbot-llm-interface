@@ -4,6 +4,7 @@ import { chatSession } from '@/lib/db/schema/app';
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { eq, and } from 'drizzle-orm';
 
 export async function POST() {
     const session = await auth.api.getSession({
@@ -33,5 +34,21 @@ export async function POST() {
         { error: 'Failed to create chat session' },
         { status: 500 }
       );
+    }
+  }
+
+  export async function GET() {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  
+    try {
+      // use your helper to fetch all sessions for this user
+      const sessions = await db.select().from(chatSession).where(eq(chatSession.userId, session.user.id));
+      return NextResponse.json(sessions);
+    } catch (error) {
+      console.error('Error fetching chat sessions:',   error);
+      return NextResponse.json({ error: 'Failed to load chat sessions' }, { status: 500 });
     }
   }

@@ -29,3 +29,4 @@ export const updateChatSession = async (id: string, updates: { title?: string })
     .where(eq(chatSession.id, id))
     .returning();
 };
+

@@ -17,16 +17,26 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { getDocumentsByUserId } from '@/lib/db/query/document';
 import { DocumentDropdown } from './document-dropdown';
 
+
 interface HomeClientProps {
-  suggestedQuestions: string[];
-  moreQuestions: string[];
+  suggestedQuestions?: string[];
+  moreQuestions?: string[];
+  initialSessionId?: string;
+  initialMessages?: any[];
 }
+
 type Document = {
   id: string;
   name: string;
 };
 
-export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProps) {
+export function HomeClient({  
+  suggestedQuestions = [], 
+  moreQuestions = [],
+  initialSessionId,
+  initialMessages = []
+ }: HomeClientProps) {
+  const router = useRouter()
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -39,8 +49,91 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDocumentDropdownOpen, setIsDocumentDropdownOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionPosition, setMentionPosition] = useState({ x: 100, y: 100 });
+  const commandRef = useRef<HTMLDivElement>(null);
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
+  const { 
+    messages, 
+    input, 
+    handleInputChange: originalHandleInputChange, 
+    handleSubmit: chatHandleSubmit, 
+    append, 
+    isLoading: chatIsLoading, 
+    setInput,
+    setMessages,
+    stop
+  } = useChat({
+    api: '/api/chat',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+    },
+    body: {
+      doc_id: "319e6e41-fc39-4a28-870d-c7f44a9570c4",
+      force_web_search: false,
+      session_id: currentSessionId,
+    },
+    initialMessages: initialMessages,
+    onResponse: async (response) => {
+      console.log('Chat API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      console.log("Get Current Session: ", currentSessionId)
+      if (currentSessionId) {
+        console.log('Saving user message to session:', { currentSessionId, message: input.trim() });
+        try {
+          await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({
+              role: 'user',
+              content: input.trim(),
+            }),
+          });
+          console.log('Successfully saved user message');
+        } catch (error) {
+          console.error('Failed to save user message:', error);
+        }
+      }
+    },
+    onFinish: async (message) => {
+      console.log('Chat stream finished. Final message:', message);
+      if (currentSessionId) {
+        console.log('Saving assistant message to session:', { currentSessionId, message: message.content });
+        try {
+          await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({
+              role: 'assistant',
+              content: message.content,
+            }),
+          });
+          console.log('Successfully saved assistant message');
+        } catch (error) {
+          console.error('Failed to save assistant message:', error);
+        }
+      }
+    },
+    onError: (error) => {
+      console.error('Chat error occurred:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+      toast.error(
+        error.message || "An error occurred while processing your message"
+      );
+    },
+  });
+
+  const handleNewMessage = (message: any) => {
+    setMessages((prevMessages) => [...prevMessages, message]); // Add new message to the state
+  };
 
   const handleDocumentSelect = (doc: Document) => {
     try {
@@ -83,9 +176,16 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
 
   const createNewSession = async () => {
     try {
+      console.log('Creating new chat session...');
       const newSession = await fetchWithAuth('/api/chat-sessions', {
         method: 'POST',
       });
+      
+      if (!newSession || !newSession.id) {
+        throw new Error('Invalid session data received from server');
+      }
+      
+      console.log('New session created in createNewSession:', newSession.id);
       setCurrentSessionId(newSession.id);
       return newSession.id;
     } catch (error) {
@@ -95,84 +195,8 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     }
   };
 
-  const { 
-    messages, 
-    input, 
-    handleInputChange: originalHandleInputChange, 
-    handleSubmit: chatHandleSubmit, 
-    append, 
-    isLoading: chatIsLoading, 
-    setInput,
-    setMessages,
-    stop
-  } = useChat({
-    api: '/api/chat/stream',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'text/event-stream',
-    },
-    body: {
-      doc_id: "319e6e41-fc39-4a28-870d-c7f44a9570c4",
-      force_web_search: false,
-      session_id: currentSessionId,
-    },
-    onResponse: async (response) => {
-      // console.log('Chat API Response:', {
-      //   status: response.status,
-      //   statusText: response.statusText,
-      //   headers: Object.fromEntries(response.headers.entries())
-      // });
-      // console.log("Get Current Session: ", currentSessionId)
-      if (currentSessionId) {
-        // console.log('Saving user message to session:', { currentSessionId, message: input.trim() });
-        try {
-          await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({
-              role: 'user',
-              content: input.trim(),
-            }),
-          });
-          // console.log('Successfully saved user message');
-        } catch (error) {
-          console.error('Failed to save user message:', error);
-        }
-      }
-    },
-    onFinish: async (message) => {
-      // console.log('Chat stream finished. Final message:', message);
-      if (currentSessionId) {
-        // console.log('Saving assistant message to session:', { currentSessionId, message: message.content });
-        try {
-          await fetchWithAuth(`/api/chat-sessions/${currentSessionId}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({
-              role: 'assistant',
-              content: message.content,
-            }),
-          });
-          // console.log('Successfully saved assistant message');
-        } catch (error) {
-          console.error('Failed to save assistant message:', error);
-        }
-      }
-    },
-    onError: (error) => {
-      console.error('Chat error occurred:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack
-      });
-      toast.error(
-        error.message || "An error occurred while processing your message"
-      );
-    },
-  });
+  
 
-  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [mentionPosition, setMentionPosition] = useState({ x: 100, y: 100 });
-  const commandRef = useRef<HTMLDivElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -266,6 +290,7 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
   };
 
   // Close dropdown when clicking outside
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (commandRef.current && !commandRef.current.contains(event.target as Node)) {
@@ -279,7 +304,12 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     };
   }, []);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => {
+    // This effect runs once when the component is mounted to set the initial messages
+    setMessages(initialMessages);
+    console.log(messages)
+  }, [initialMessages]);
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -289,19 +319,43 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     setIsSubmitting(true);
     
     try {
-      // Create a new session if one doesn't exist
+      // If we're in a session page, we already have a sessionId from the URL
       let sessionId = currentSessionId;
-      if (!sessionId) {
-        const newSession = await createNewSession();
-        sessionId = newSession;  // Use the returned session ID directly
-        setCurrentSessionId(sessionId);
-        // console.log("HandleSubmit: ", sessionId);
+      
+      // Only create a new session if we're not in a session page
+      if (!sessionId && !initialSessionId) {
+        sessionId = await createNewSession();
+        // If we created a new session, redirect to the session page
+        if (sessionId) {
+          router.push(`/chat/${sessionId}`);
+        }
+      } else {
+        // Use the session ID from the URL
+        sessionId = initialSessionId || sessionId;
       }
   
-      // Pass the session ID directly to the chat submission
-      await chatHandleSubmit(e);
+      if (!sessionId) {
+        throw new Error('Failed to create or get session ID');
+      }
+  
+      // Manually append the message with the correct session ID
+      await append({
+        content: input,
+        role: 'user',
+      }, {
+        options: {
+          body: {
+            session_id: sessionId,
+            doc_id: "319e6e41-fc39-4a28-870d-c7f44a9570c4",
+            force_web_search: false,
+          }
+        }
+      });
+  
+      setInput('');
     } catch (error) {
       console.error('Error in chat submission:', error);
+      toast.error('Failed to send message');
     } finally {
       setIsSubmitting(false);
     }
@@ -314,14 +368,6 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
     
     // Set the input and trigger submission
     setInput(question);
-    // Use a small timeout to ensure the input is updated before submission
-    setTimeout(() => {
-      const fakeEvent = {
-        preventDefault: () => {},
-        target: { elements: [{ value: question }] },
-      } as unknown as React.FormEvent<HTMLFormElement>;
-      handleSubmit(fakeEvent);
-    }, 100);
   };
 
   const handleFileUpload = (files: File[]) => {
@@ -336,199 +382,160 @@ export function HomeClient({ suggestedQuestions, moreQuestions }: HomeClientProp
 
   return (
     
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
-      {/* Chat Messages */}
-      <div 
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 pb-0"
-      >
-        <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center p-4 text-muted-foreground">
-              <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
-              <p className="mb-6">Ask me anything or select a suggested question below.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mb-8">
-                {suggestedQuestions.map((question, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="h-auto py-3 text-left justify-start whitespace-normal"
-                    onClick={() => handleQuestionClick(question)}
-                  >
-                    {question}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <>
-              {messages.map((message) => (
-                <div key={message.id} className="w-full">
-                  <PreviewMessage
-                    chatId={chatId}
-                    message={message}
-                    isLoading={chatIsLoading && messages[messages.length - 1]?.id === message.id}
-                  />
-                </div>
-              ))}
+<div className="flex flex-col w-full sm:w-[500px] md:w-[700px] lg:w-[1000px] mx-auto h-[calc(100vh-4rem)] bg-background px-4 sm:px-8 md:px-16 lg:px-30 items-center">
 
-              {chatIsLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
-                <div className="w-full">
-                  <ThinkingMessage />
-                </div>
-              )}
-            </>
-          )}
-          <div ref={messagesEndRef} className="h-4" />
+{/* Chat Messages */}
+<div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 pb-0 w-full">
+  <div className="w-full space-y-6">
+    {messages.length === 0 ? (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center p-4 text-muted-foreground w-full">
+        <h2 className="text-2xl font-semibold mb-2">How can I help you today?</h2>
+        <p className="mb-6">Ask me anything or select a suggested question below.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-4xl mb-8">
+          {suggestedQuestions.map((question, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              className="h-auto py-3 text-left justify-start whitespace-normal w-full"
+              onClick={() => handleQuestionClick(question)}
+            >
+              {question}
+            </Button>
+          ))}
         </div>
       </div>
-
-      {/* Input Area */}
-      <div className="border-t p-4 bg-background">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-2">
-          <DocumentDropdown 
-            selectedDocuments={selectedDocuments}
-            onSelect={handleDocumentSelect}
-            onRemove={removeDocument}
-          />
-            <div className="flex flex-wrap gap-2">
-              {selectedDocuments.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
-                  <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
-                    {doc.name}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeDocument(doc.id);
-                    }}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
-              {file && (
-                <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
-                  <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
-                    {file.name}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
-                    onClick={() => setFile(null)}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-            </div>
+    ) : (
+      <>
+        {messages.map((message) => (
+          <div key={message.id} className="w-full">
+            <PreviewMessage
+              chatId={chatId}
+              message={message}
+              isLoading={chatIsLoading && messages[messages.length - 1]?.id === message.id}
+            />
           </div>
-          
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="relative">
-              {/* <TextAreaWithDropdown/> */}
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && !chatIsLoading && !isSubmitting) {
-                    e.preventDefault();
-                    setShowMentionDropdown(false);
-                    handleSubmit(e as any);
-                  } else if (e.key === 'Escape' && showMentionDropdown) {
-                    e.preventDefault();
-                    setShowMentionDropdown(false);
-                  } else if (showMentionDropdown && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-                    e.preventDefault();
-                    // Command component handles keyboard navigation
-                  }
-                }}
-                placeholder="Ask assistant to mention specific PDFs... use the Plus Button to do that"
-                className="min-h-[60px] pr-16 resize-none"
-                disabled={chatIsLoading || isSubmitting}
-              />
-              
-              {/* Mention Dropdown */}
-              {/* {showMentionDropdown && (
-                <div className="absolute bottom-full left-0 mb-1 w-full max-w-md">
-                  <Command className="w-full rounded-lg border bg-popover shadow-md">
-                    <CommandInput 
-                      placeholder="Search documents..."
-                      value={mentionQuery}
-                      onValueChange={setMentionQuery}
-                      autoFocus
-                    />
-                    <CommandList className="max-h-60 overflow-auto">
-                      <CommandEmpty>No documents found.</CommandEmpty>
-                      <CommandGroup>
-                        {documents
-                          .filter(doc => 
-                            doc.name.toLowerCase().includes(mentionQuery.toLowerCase()) &&
-                            !selectedDocuments.some(selected => selected.id === doc.id)
-                          )
-                          .map((doc) => (
-                            <CommandItem
-                              key={doc.id}
-                              onSelect={() => handleDocumentMention(doc.name)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              <span className="truncate">{doc.name}</span>
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
-              )} */}
-            </div>
-            <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setIsUploadDialogOpen(true)}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="font-semibold">Upload PDF</p>
-                  <p className="text-xs">Less than 150 pages and 15 MB per file</p>
-                </TooltipContent>
-              </Tooltip>
-              <Button
-                type="submit"
-                size="icon"
-                className="h-8 w-8 bg-primary text-primary-foreground"
-                disabled={!input.trim() || chatIsLoading || isSubmitting}
-              >
-                {chatIsLoading || isSubmitting ? (
-                  <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
-      <UploadDialog
-        open={isUploadDialogOpen} 
-        onOpenChange={setIsUploadDialogOpen}
-        onFileUpload={handleFileUpload}
-        sessionId={chatId}
+        ))}
+        {chatIsLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
+          <div className="w-full">
+            <ThinkingMessage />
+          </div>
+        )}
+      </>
+    )}
+    <div ref={messagesEndRef} className="h-4" />
+  </div>
+</div>
+
+{/* Input Area */}
+<div className="border-t p-4 bg-background w-full flex-shrink-0">
+  <div className="w-full space-y-3">
+    <div className="flex items-start gap-2">
+      <DocumentDropdown 
+        selectedDocuments={selectedDocuments}
+        onSelect={handleDocumentSelect}
+        onRemove={removeDocument}
       />
+      <div className="flex-1 flex flex-wrap gap-2">
+        {selectedDocuments.map((doc) => (
+          <div key={doc.id} className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
+            <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
+              {doc.name}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeDocument(doc.id);
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+        {file && (
+          <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-sm">
+            <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[160px]">
+              {file.name}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 rounded-full hover:bg-background/50 hover:text-foreground/80"
+              onClick={() => setFile(null)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
+
+    <form onSubmit={handleSubmit} className="relative w-full">
+      <div className="relative w-full">
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !chatIsLoading && !isSubmitting) {
+              e.preventDefault();
+              setShowMentionDropdown(false);
+              handleSubmit(e as any);
+            } else if (e.key === 'Escape' && showMentionDropdown) {
+              e.preventDefault();
+              setShowMentionDropdown(false);
+            } else if (showMentionDropdown && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+              e.preventDefault();
+            }
+          }}
+          placeholder="Ask assistant to mention specific PDFs... use the Plus Button to do that"
+          className="min-h-[60px] pr-16 resize-none w-full"
+          disabled={chatIsLoading || isSubmitting}
+        />
+      </div>
+      <div className="absolute right-2 bottom-2 flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsUploadDialogOpen(true)}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="font-semibold">Upload PDF</p>
+            <p className="text-xs">Less than 150 pages and 15 MB per file</p>
+          </TooltipContent>
+        </Tooltip>
+        <Button
+          type="submit"
+          size="icon"
+          className="h-8 w-8 bg-primary text-primary-foreground"
+          disabled={!input.trim() || chatIsLoading || isSubmitting}
+        >
+          {chatIsLoading || isSubmitting ? (
+            <div className="h-4 w-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<UploadDialog
+  open={isUploadDialogOpen} 
+  onOpenChange={setIsUploadDialogOpen}
+  onFileUpload={handleFileUpload}
+  sessionId={chatId}
+/>
+</div>
   );
 }

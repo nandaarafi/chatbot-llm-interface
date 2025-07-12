@@ -1,4 +1,3 @@
-
 import { HomeClient } from "@/components/chat/home-client";
 
 export default function Home() {
@@ -16,11 +15,11 @@ export default function Home() {
   ];
 
   return (
-    
-    // <Chat/>
-    <HomeClient 
-      suggestedQuestions={suggestedQuestions} 
-      moreQuestions={moreQuestions} 
-    />
+    <div className="w-full h-full">
+      <HomeClient 
+        suggestedQuestions={suggestedQuestions} 
+        moreQuestions={moreQuestions} 
+      />
+    </div>
   );
 }

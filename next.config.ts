@@ -7,18 +7,24 @@ const nextConfig = {
       return [
         // Proxy chat streaming to FastAPI
         {
-          source: '/api/chat/stream',
-          destination: 'http://127.0.0.1:8000/chat/stream',
+          source: '/api/chat',
+          destination: 'http://127.0.0.1:8080/chat/stream',
         },
         // Proxy file uploads to FastAPI
+      ];
+    }
+    else {
+      return [
+        {
+          source: '/api/chat',
+          destination: `${process.env.API_BASE_URL}/chat/stream`,
+        },
         {
           source: '/api/upload',
-          destination: 'http://127.0.0.1:8000/upload',
+          destination: `${process.env.API_BASE_URL}/upload`,
         },
       ];
     }
-    // In production, these will be handled by your Next.js API routes
-    return [];
   },
 };
 
